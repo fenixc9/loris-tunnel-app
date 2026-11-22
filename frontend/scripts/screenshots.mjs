@@ -51,7 +51,6 @@ try {
     await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }' })
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'light')
     assert.equal(await page.locator('[data-screenshot-preview]').count(), 1)
-    assert.match(await page.locator('.sidebar-pro-expiry').innerText(), /Pro/, 'Screenshot must display Pro status')
     assert.doesNotMatch(await page.locator('.sidebar-version').innerText(), /-dev/, 'Screenshot must display the release version')
     assert.equal(await page.locator('.sidebar-traffic').count(), name === 'overview' ? 1 : 0, 'Only Overview should display traffic')
     assert.equal(await page.locator('html').getAttribute('lang'), locale)
@@ -69,7 +68,10 @@ try {
       assert.ok(!text.includes('Not fetched'), 'Dev Tunnel fixtures must contain fetched port data')
     }
     if (name === 'sync') await page.locator('.sync-status').getByText(locale === 'en' ? 'Synced' : '已同步', { exact: true }).waitFor()
-    if (name === 'config') await page.locator('.config-path').waitFor({ state: 'attached' })
+    if (name === 'config') {
+      await page.locator('.config-path').waitFor({ state: 'attached' })
+      await page.getByRole('button', { name: /^Pro ·/ }).waitFor({ state: 'attached' })
+    }
     if (bottom) await page.locator('main').evaluate(el => { el.scrollTop = el.scrollHeight })
     if (name === 'tunnels') {
       for (const label of ['SSH', 'Cloudflare', 'Dev Tunnel', 'FRP']) {

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"net"
 	"testing"
 	"time"
 
@@ -41,20 +43,58 @@ func TestGetStateDoesNotWaitForConfigGate(t *testing.T) {
 	}
 }
 
-func TestGetStateReportsLicenseSpecificTunnelLimit(t *testing.T) {
+func TestToggleTunnelStartsFourthWithoutLicense(t *testing.T) {
 	a, _ := syncTestApp(t)
-	for _, pro := range []bool{false, true, false} {
-		a.licenseActive.Store(pro)
-		state, err := a.GetState()
+	t.Cleanup(a.tunnel.Shutdown)
+
+	// Hold the SSH handshakes open so all four starts compete for slots.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	closed := make(chan struct{})
+	go func() {
+		defer close(closed)
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+		}
+	}()
+	t.Cleanup(func() { <-closed })
+	_, err = a.storage.Update(func(c *conf.Config) error {
+		c.Jumpers[0].Host = "127.0.0.1"
+		c.Jumpers[0].Port = listener.Addr().(*net.TCPAddr).Port
+		c.Jumpers[0].BypassHostVerification = true
+		for id := 1; id <= 4; id++ {
+			c.Tunnels = append(c.Tunnels, model.Tunnel{
+				ID: id, Name: fmt.Sprintf("Tunnel %d", id), Mode: "local", Status: "stopped",
+				JumperIDs: []int{1}, LocalHost: "127.0.0.1", LocalPort: 18000 + id,
+				RemoteHost: "127.0.0.1", RemotePort: 5432,
+			})
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id := 1; id <= 4; id++ {
+		tunnel, err := a.ToggleTunnel(id)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("start tunnel %d: %v", id, err)
 		}
-		expected := 3
-		if pro {
-			expected = 0
+		if tunnel.Status != "busy" {
+			t.Fatalf("start tunnel %d: expected busy, got %s", id, tunnel.Status)
 		}
-		if state.ActiveSlotLimit != expected {
-			t.Fatalf("pro=%v: limit=%d, expected=%d", pro, state.ActiveSlotLimit, expected)
-		}
+	}
+	state, err := a.GetState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.ActiveSlotLimit != 0 || state.ActiveSlots != 4 {
+		t.Fatalf("expected four active slots with no limit, got %d with limit %d", state.ActiveSlots, state.ActiveSlotLimit)
 	}
 }

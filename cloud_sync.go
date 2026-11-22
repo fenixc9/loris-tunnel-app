@@ -206,11 +206,11 @@ func (a *App) applyCloudConfig(data []byte, expected string) error {
 	running := a.tunnel.RunningIDs()
 	a.tunnel.Shutdown()
 	if e = a.storage.RestoreRaw(data, expected); e != nil {
-		_ = a.tunnel.StartPreviouslyRunning(running, a.tunnelStartLimit())
+		_ = a.tunnel.StartPreviouslyRunning(running, tunnelStartLimit)
 		return e
 	}
 	// Autostart failures are connection errors, not a failed file restoration.
-	if e = a.tunnel.StartAutoStart(a.tunnelStartLimit()); e != nil {
+	if e = a.tunnel.StartAutoStart(tunnelStartLimit); e != nil {
 		return &cloudsync.AppliedError{Err: fmt.Errorf("file restored; auto-start failed: %w", e)}
 	}
 	if a.ctx != nil {

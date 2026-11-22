@@ -24,7 +24,6 @@ import {
   DebugJumperFailure as DebugJumperFailureAPI,
   DebugSavedTunnelFailure as DebugSavedTunnelFailureAPI,
   DebugTunnelFailure as DebugTunnelFailureAPI,
-  GetAutoRunEnabled,
   GetDistributionChannel,
   GetLicenseStatus as GetLicenseStatusAPI,
   GetSSHConfigImportSources,
@@ -56,7 +55,6 @@ import {
   RedeemLicenseCode as RedeemLicenseCodeAPI,
   ReorderGroups,
   SaveUILocale,
-  SetAutoRunEnabled,
   TestJumperConnection as TestJumperConnectionAPI,
   TestTunnelConnection as TestTunnelConnectionAPI,
   ToggleTunnel,
@@ -205,7 +203,6 @@ let cloudflareResourceSeq = 0
 let cloudflareInspectSeq = 0
 let cloudflareStatusAt = 0
 let cloudflareStatusRequest = null
-const activeSlots = ref(0)
 const cloudSyncStatus = ref(null)
 const cloudSyncBannerIcons = {
   error: 'bi-exclamation-circle',
@@ -311,6 +308,7 @@ watch(configMessage, (message) => {
 
 watch(activePage, (pageKey) => {
   trackPageView(pageKey, appMeta.version)
+  if (pageKey === 'config') void refreshLicenseStatusFromConfig({ silent: true })
 })
 
 const jumpers = ref([])
@@ -419,7 +417,6 @@ const JUMPER_LIMITS = {
 const TUNNEL_LIMITS = {
   name: 20,
 }
-const FREE_PLAN_RUNNING_LIMIT = 3
 
 const currentPage = computed(() => pages.value.find((page) => page.key === activePage.value))
 const totalTunnels = computed(() => tunnels.value.length)
@@ -958,7 +955,6 @@ async function loadStateFromBackend(options = {}) {
     const state = await GetState()
     jumpers.value = Array.isArray(state?.jumpers) ? state.jumpers : []
     tunnelGroups.value = Array.isArray(state?.groups) ? state.groups : []
-    activeSlots.value = Number(state?.activeSlots) || 0
     const backendTunnels = (Array.isArray(state?.tunnels) ? state.tunnels : []).map(normalizeTunnelFromBackend)
     const validTunnelIds = new Set(backendTunnels.map((item) => String(item.id)))
     Object.keys(tunnelErrorAiDebugStates).forEach((key) => {
@@ -1930,11 +1926,11 @@ async function refreshLicenseStatus(options = {}) {
   }
 }
 
-async function refreshLicenseStatusFromConfig() {
+async function refreshLicenseStatusFromConfig(options) {
   if (isRefreshingLicenseStatus.value) return
   isRefreshingLicenseStatus.value = true
   try {
-    await refreshLicenseStatus()
+    await refreshLicenseStatus(options)
   } finally {
     isRefreshingLicenseStatus.value = false
   }
@@ -3210,23 +3206,6 @@ async function toggleTunnel(tunnel) {
   }
 
   const shouldStart = tunnel.status === 'stopped' || tunnel.status === 'error'
-  const runningLimit = proLicense.isPro ? 0 : FREE_PLAN_RUNNING_LIMIT
-  const pendingStartCount = [...pendingTunnelActions.values()].filter((action) => action === 'start').length
-  if (runningLimit > 0 && tunnel.status !== 'running' && Number(activeSlots.value) + pendingStartCount >= runningLimit) {
-    const message = t('config.messages.freePlanRunningLimit', { limit: runningLimit })
-    openActionDialog({
-      mode: 'confirm',
-      message,
-      confirmButtonClass: 'btn-primary',
-      confirmLabel: t('app.sidebar.upgrade'),
-      onConfirm: async () => {
-        await openProUpgrade()
-      },
-    })
-    logEvent('warn', message)
-    return
-  }
-
   const previousStatus = tunnel.status
   const previousError = tunnel.lastError || ''
   pendingTunnelActions.set(tunnel.id, shouldStart ? 'start' : 'stop')
@@ -3744,17 +3723,6 @@ onMounted(async () => {
   } catch (_) {
     // GitHub is the safe default for development/older bindings.
   }
-  const licenseStatusReady = await refreshLicenseStatus({ silent: true })
-  // If launch at login is on but user is not Pro or expired, disable it and show upgrade prompt
-  try {
-    const autoRunEnabled = await GetAutoRunEnabled()
-    if (licenseStatusReady && autoRunEnabled && !proLicense.isPro) {
-      configMessage.value = t('config.autoRunExpiredDisabled')
-      await SetAutoRunEnabled(false)
-    }
-  } catch (err) {
-    logEvent('error', errorMessage(err, 'Failed to check or reset launch-at-login (AutoRun).'))
-  }
   try {
     trafficMonitorEnabled.value = await GetTrafficMonitorEnabled()
   } catch (_) {
@@ -3827,17 +3795,13 @@ function closeTunnelModal() {
         :pages="pages"
         :active-page="activePage"
         :app-version="appMeta.version"
-        :is-pro="isPro"
-        :pro-expiry-label="proExpiryLabel"
         :has-new-version="hasNewVersion"
         :collapsed="sidebarCollapsed"
         :traffic-monitor-enabled="trafficMonitorEnabled"
         :traffic="traffic"
         :traffic-history-up="trafficHistoryUp"
         :traffic-history-down="trafficHistoryDown"
-        :show-upgrade-button="true"
         @switch-page="switchPage"
-        @upgrade="openProUpgrade"
         @open-release-page="openReleasePage"
         @toggle-collapse="toggleSidebar"
       />

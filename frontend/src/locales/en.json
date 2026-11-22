@@ -38,7 +38,6 @@
             "logsSubtitle": "View recent operation logs",
             "config": "Config",
             "configSubtitle": "App preferences, data and license",
-            "upgrade": "Upgrade",
             "collapse": "Collapse sidebar",
             "expand": "Expand sidebar",
             "traffic": "Live traffic",
@@ -785,14 +784,13 @@
         "brandGreen": "Green",
         "autoRun": "Launch at login",
         "autoRunDesc": "Start Loris Tunnel when you log in",
-        "autoRunExpiredDisabled": "Launch at login was enabled but your license has expired or is inactive. It has been disabled. Upgrade to re-enable.",
         "trafficMonitor": "Live traffic monitor",
         "trafficMonitorDesc": "Show upload/download rates and sparkline in the sidebar",
         "currentVersion": "Current Version",
-        "licenseStatus": "License Status",
+        "licenseStatus": "Online Service License",
         "refreshLicenseStatusHint": "Click to refresh license status",
         "refreshingLicenseStatus": "Refreshing...",
-        "freeVersion": "Free Version",
+        "licenseNotActivated": "Not activated",
         "checkUpdates": "Check for Updates",
         "checkingUpdates": "Checking...",
         "storeUpdatesManaged": "Updates are managed by Microsoft Store.",
@@ -800,8 +798,6 @@
         "noUpdatesAvailable": "No updates available.",
         "latestVersionIs": "Latest version: {version}",
         "openDownloadPage": "Open Download Page",
-        "upgradePro": "Upgrade to Pro",
-        "proExpires": "Pro expires on {date}",
         "lifetime": "Lifetime",
         "licenseCode": "License Code",
         "redeemDialog": {
@@ -834,15 +830,12 @@
             "licenseInactive": "License is not activated.",
             "proActive": "Pro is active ({expiry}).",
             "licenseRedeemedWithExpiry": "License redeemed successfully ({expiry}).",
-            "enterLicenseCode": "Please enter license code.",
-            "freePlanRunningLimit": "The free plan supports up to {limit} running tunnels. Stop one before starting another. Upgrade to Pro to unlock more features."
+            "enterLicenseCode": "Please enter license code."
         },
         "appearance": "Appearance",
         "system": "System",
         "data": "Data",
-        "aboutLicense": "About & License",
-        "notNow": "Not now",
-        "proFeature": "{feature} is a Pro feature"
+        "aboutLicense": "About & License"
     },
     "cloudSync": {
         "enabled": "Enable Cloud Sync",

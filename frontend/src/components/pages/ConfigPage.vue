@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import CardHeader from '../common/CardHeader.vue'
 import SecretField from '../common/SecretField.vue'
 import CopyIconButton from '../common/CopyIconButton.vue'
-import UpgradePrompt from '../common/UpgradePrompt.vue'
 import {
   GetAutoRunEnabled,
   GetTrafficMonitorEnabled,
@@ -23,7 +22,7 @@ import {
   QuitApplication,
 } from '../../../wailsjs/go/main/App'
 
-const props = defineProps({
+defineProps({
   theme: {
     type: String,
     required: true,
@@ -90,7 +89,6 @@ const autoRunEnabled = ref(false)
 const trafficMonitorEnabled = ref(true)
 const configBusy = ref('')
 const configLocationInfo = ref(null)
-const upgradePromptVisible = ref(false)
 onMounted(async () => {
   try {
     autoRunEnabled.value = await GetAutoRunEnabled()
@@ -226,16 +224,12 @@ async function onResetConfigDataDir() {
 }
 
 async function onAutoRunChange(checked, input) {
-  if (checked && !props.isPro) {
-    input.checked = false
-    upgradePromptVisible.value = true
-    return
-  }
   try {
-    await SetAutoRunEnabled(!!checked)
-    autoRunEnabled.value = !!checked
-  } catch (_) {
-    autoRunEnabled.value = !checked
+    await SetAutoRunEnabled(checked)
+    autoRunEnabled.value = checked
+  } catch (err) {
+    input.checked = autoRunEnabled.value
+    emit('set-config-message', String(err))
   }
 }
 
@@ -385,7 +379,7 @@ function openReleasePage() {
         <CardHeader :title="t('config.system')" icon="bi-sliders" />
         <div class="lt-card-body">
           <dl class="lt-kv config-kv">
-            <dt class="text-body-secondary">{{ t('config.autoRun') }} <span class="lt-pill lt-pill--primary ms-1">PRO</span></dt>
+            <dt class="text-body-secondary">{{ t('config.autoRun') }}</dt>
             <dd>
               <div class="form-check form-switch m-0">
                 <input
@@ -508,9 +502,9 @@ function openReleasePage() {
             <dt class="text-body-secondary">{{ t('config.licenseStatus') }}</dt>
             <dd>
               <div class="d-flex align-items-center flex-wrap gap-2">
-                <span v-if="!isPro">{{ t('config.freeVersion') }}</span>
+                <span v-if="!isPro">{{ t(isRefreshingLicenseStatus ? 'config.refreshingLicenseStatus' : 'config.licenseNotActivated') }}</span>
                 <button v-if="!isPro" type="button" class="btn btn-sm btn-outline-primary" @click="$emit('upgrade')">
-                  {{ t('config.upgradePro') }}
+                  {{ t('purchase.buyTab') }}
                 </button>
                 <button
                   v-else
@@ -535,7 +529,6 @@ function openReleasePage() {
         </div>
       </div>
     </div>
-    <UpgradePrompt v-if="upgradePromptVisible" :feature="t('config.autoRun')" :description="t('config.autoRunDesc')" @close="upgradePromptVisible = false" @upgrade="upgradePromptVisible = false; $emit('upgrade')" />
   </section>
 
   <div

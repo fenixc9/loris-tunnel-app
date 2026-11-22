@@ -133,14 +133,11 @@ Install the official `frpc` or select a local executable under **Providers → F
 - Server settings and tokens are stored in `frp-local.json` beside the app configuration with current-user-only permissions. They are excluded from ordinary exports and cloud backup; configure and rebind the server on each additional device.
 - Running status requires confirmation from the client management API. Local origin reachability is displayed separately.
 
-## Free and Pro
+## Local Features and Online Services
 
-| Capability | Free | Active Pro license |
-| --- | --- | --- |
-| Concurrent tunnels, across all providers | 3 | No application-imposed concurrency limit |
-| Cloud backup and restore | Unavailable | Available |
+The app supports concurrent tunnels across all providers without an application limit. Manual starts, automatic starts, and launch at login are available without a Pro license. Provider quotas and server capacity still apply.
 
-Starting and reconnecting tunnels count toward the concurrent limit, including automatic starts. If license verification fails, tunnel starts use the free limit. Provider service quotas and server capacity still apply independently. Manage the license under **Config**.
+The hosted cloud backup service verifies Pro licenses on the server. Manage your online service license under **Config**.
 
 ## Configuration and Backup
 

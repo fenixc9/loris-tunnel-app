@@ -19,14 +19,6 @@ const props = defineProps({
     type: String,
     required: true
   },
-  isPro: {
-    type: Boolean,
-    required: true
-  },
-  proExpiryLabel: {
-    type: String,
-    required: true
-  },
   hasNewVersion: {
     type: Boolean,
     default: false
@@ -50,14 +42,10 @@ const props = defineProps({
   trafficHistoryDown: {
     type: Array,
     default: () => []
-  },
-  showUpgradeButton: {
-    type: Boolean,
-    default: false
   }
 })
 
-defineEmits(['switch-page', 'upgrade', 'open-release-page', 'toggle-collapse'])
+defineEmits(['switch-page', 'open-release-page', 'toggle-collapse'])
 
 const displayVersion = computed(() => `${props.appVersion}${isDev ? '-dev' : ''}`)
 const chartRef = ref(null)
@@ -267,44 +255,11 @@ function onChartMouseLeave() {
         </div>
       </div>
 
-      <div class="sidebar-footer" :class="{ 'dev-mode': isDev }">
-        <span class="sidebar-version" :class="{ compact: collapsed }">
-          <template v-if="!collapsed">v{{ displayVersion }}</template>
-          <template v-else>v</template>
+      <div v-if="!collapsed" class="sidebar-footer" :class="{ 'dev-mode': isDev }">
+        <span class="sidebar-version">
+          v{{ displayVersion }}
           <span v-if="hasNewVersion" class="version-new-badge" @click="$emit('open-release-page')">new</span>
         </span>
-        <button
-          v-if="showUpgradeButton && !isPro"
-          type="button"
-          class="btn btn-primary btn-sm sidebar-upgrade-btn"
-          :title="$t('app.sidebar.upgrade')"
-          :aria-label="$t('app.sidebar.upgrade')"
-          @click="$emit('upgrade')"
-        >
-          <template v-if="collapsed">
-            <i class="bi bi-stars" aria-hidden="true" />
-          </template>
-          <template v-else>
-            {{ $t('app.sidebar.upgrade') }}
-          </template>
-        </button>
-        <template v-else-if="isPro">
-          <span
-            v-if="collapsed"
-            class="sidebar-pro-badge"
-            :title="$t('config.proExpires', { date: proExpiryLabel })"
-            :aria-label="$t('config.proExpires', { date: proExpiryLabel })"
-          >
-            <i class="bi bi-patch-check-fill" aria-hidden="true" />
-          </span>
-          <span
-            v-else
-            class="sidebar-pro-expiry"
-            :title="$t('config.proExpires', { date: proExpiryLabel })"
-          >
-            Pro · {{ proExpiryLabel }}
-          </span>
-        </template>
       </div>
     </div>
   </aside>

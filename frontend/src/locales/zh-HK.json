@@ -36,7 +36,6 @@
             "logsSubtitle": "檢視近期操作日誌",
             "config": "設定",
             "configSubtitle": "應用程式偏好、資料與授權",
-            "upgrade": "升級",
             "collapse": "收合側邊欄",
             "expand": "展開側邊欄",
             "traffic": "即時流量",
@@ -785,14 +784,13 @@
         "brandGreen": "綠色",
         "autoRun": "隨系統啟動",
         "autoRunDesc": "登入時自動啟動 Loris Tunnel",
-        "autoRunExpiredDisabled": "您已開啟隨系統啟動，但目前未升級或授權已過期，已為您關閉該功能。請升級後重新開啟。",
         "trafficMonitor": "即時流量監控",
         "trafficMonitorDesc": "在側欄顯示隧道上下行速率與流量曲線",
         "currentVersion": "目前版本",
-        "licenseStatus": "授權狀態",
+        "licenseStatus": "網上服務授權",
         "refreshLicenseStatusHint": "點選重新整理授權狀態",
         "refreshingLicenseStatus": "重新整理中...",
-        "freeVersion": "免費版",
+        "licenseNotActivated": "未啟用",
         "checkUpdates": "檢查更新",
         "checkingUpdates": "檢查中...",
         "storeUpdatesManaged": "更新由 Microsoft Store 管理。",
@@ -800,8 +798,6 @@
         "noUpdatesAvailable": "無可用更新",
         "latestVersionIs": "發現新版本：{version}",
         "openDownloadPage": "開啟下載頁面",
-        "upgradePro": "升級到 Pro",
-        "proExpires": "Pro 到期於 {date}",
         "lifetime": "終身",
         "licenseCode": "註冊碼",
         "redeemDialog": {
@@ -834,15 +830,12 @@
             "licenseInactive": "授權尚未啟用。",
             "proActive": "Pro 已啟用（{expiry}）。",
             "licenseRedeemedWithExpiry": "授權兌換成功（{expiry}）。",
-            "enterLicenseCode": "請輸入註冊碼。",
-            "freePlanRunningLimit": "免費版最多同時運行 {limit} 個 Tunnel，請先停止一個再啟動。升級到 Pro 可解鎖更多功能。"
+            "enterLicenseCode": "請輸入註冊碼。"
         },
         "appearance": "外觀",
         "system": "系統",
         "data": "資料",
-        "aboutLicense": "關於與授權",
-        "notNow": "暫不升級",
-        "proFeature": "{feature}是 Pro 功能"
+        "aboutLicense": "關於與授權"
     },
     "cloudSync": {
         "enabled": "啟用雲端同步",

@@ -10,15 +10,12 @@ function deferred() {
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
   return { promise, resolve, reject }
 }
-function setup(items, pro = true) {
+function setup(items) {
   const request = deferred()
   const poll = deferred()
   const calls = []
-  const dialogs = []
   const context = vm.createContext({
     tunnelActionRevision: 0, pendingTunnelActions: reactive(new Map()), tunnels: { value: items },
-    proLicense: { isPro: pro }, FREE_PLAN_RUNNING_LIMIT: 3,
-    activeSlots: { value: 0 }, activeSlotLimit: { value: 3 },
     configMessage: { value: '' }, tunnelErrorAiDebugStates: {},
     initialStateLoading: { value: true },
     normalizeTunnelFromBackend: (item) => item,
@@ -28,7 +25,7 @@ function setup(items, pro = true) {
     patchTunnelLocal: (id, updated) => {
       context.tunnels.value = context.tunnels.value.map((item) => item.id === id ? { ...item, ...updated } : item)
     },
-    t: (key) => key, openActionDialog: (options) => { dialogs.push(options) }, openProUpgrade: async () => {},
+    t: (key) => key,
     logEvent: () => {}, trackTunnelAction: () => {}, errorMessage: (err) => err.message
   })
   for (const [start, end] of [
@@ -37,7 +34,7 @@ function setup(items, pro = true) {
   ]) {
     vm.runInContext(source.slice(source.indexOf(start), source.indexOf(end, source.indexOf(start))), context)
   }
-  return { context, request, poll, calls, dialogs }
+  return { context, request, poll, calls }
 }
 
 for (const status of ['running', 'stopped', 'error']) {
@@ -78,20 +75,6 @@ test('polling preserves pending state and cannot overwrite a completed action', 
   assert.equal(c.pendingTunnelActions.size, 0)
 })
 
-test('stopping occupies its running slot without counting as a pending start', async () => {
-  const items = [1, 2].map((id) => ({ id, name: `t${id}`, status: 'running' }))
-  const target = { id: 3, name: 't3', status: 'stopped' }
-  const { context: c, request, calls } = setup([...items, target], false)
-  c.activeSlots.value = items.length
-  const stopping = c.toggleTunnel(items[0])
-  const starting = c.toggleTunnel(target)
-  assert.deepEqual(calls, [1, 3])
-  await c.toggleTunnel({ id: 4, status: 'stopped' })
-  assert.deepEqual(calls, [1, 3])
-  request.reject(new Error('test complete'))
-  await Promise.all([stopping, starting])
-})
-
 test('polling during a request keeps its busy status and loading record', async () => {
   const tunnel = { id: 1, name: 'test', status: 'running' }
   const { context: c, request, poll } = setup([tunnel])
@@ -105,27 +88,18 @@ test('polling during a request keeps its busy status and loading record', async 
   await done
 })
 
-test('free users are blocked at three active slots', async () => {
+test('a fourth tunnel can start without an active license', async () => {
+  const running = [1, 2, 3].map((id) => ({ id, name: `t${id}`, status: 'running' }))
   const target = { id: 4, name: 't4', status: 'stopped' }
-  const { context: c, calls, dialogs } = setup([target], false)
-  c.activeSlots.value = 3
-  await c.toggleTunnel(target)
-  assert.equal(calls.length, 0)
-  assert.equal(dialogs.length, 1)
-  assert.equal(dialogs[0].mode, 'confirm')
-  assert.equal(dialogs[0].message, 'config.messages.freePlanRunningLimit')
-  assert.equal(typeof dialogs[0].onConfirm, 'function')
-})
-
-test('Pro can start a fourth tunnel even with an old three-slot snapshot', async () => {
-  const target = { id: 4, name: 't4', status: 'stopped' }
-  const { context: c, calls, dialogs, request } = setup([target], true)
-  c.activeSlots.value = 3
+  const { context: c, calls, poll, request } = setup([...running, target])
+  const syncing = c.loadStateFromBackend()
+  poll.resolve({ tunnels: [...running, target], activeSlots: 3, activeSlotLimit: 3 })
+  await syncing
   const done = c.toggleTunnel(target)
   assert.deepEqual(calls, [4])
-  assert.equal(dialogs.length, 0)
   request.resolve({ ...target, status: 'running' })
   await done
+  assert.equal(c.tunnels.value.filter(({ status }) => status === 'running').length, 4)
 })
 
 test('poll begun before a toggle cannot overwrite its completed result', async () => {

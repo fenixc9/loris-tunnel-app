@@ -34,6 +34,10 @@ import (
 )
 
 const usageHeartbeatInterval = 2 * time.Hour
+
+// TunnelBiz treats a zero limit as unlimited concurrent starts.
+const tunnelStartLimit = 0
+
 const (
 	aiReportSupportEmail = "admin@lorisdev.cc"
 	maxMailtoSubjectLen  = 180
@@ -52,20 +56,19 @@ type OpenReportEmailResult struct {
 
 // App struct
 type App struct {
-	configGate    sync.Mutex
-	cloudSync     *cloudsync.Service
-	cloudSyncErr  error
-	ctx           context.Context
-	storage       *conf.Storage
-	jumper        *biz.JumperBiz
-	group         *biz.GroupBiz
-	tunnel        *biz.TunnelBiz
-	updater       *updater.Service
-	license       *license.Client
-	licenseActive atomic.Bool
-	aiDebug       *aidebug.Service
-	machineID     string
-	initErr       error
+	configGate   sync.Mutex
+	cloudSync    *cloudsync.Service
+	cloudSyncErr error
+	ctx          context.Context
+	storage      *conf.Storage
+	jumper       *biz.JumperBiz
+	group        *biz.GroupBiz
+	tunnel       *biz.TunnelBiz
+	updater      *updater.Service
+	license      *license.Client
+	aiDebug      *aidebug.Service
+	machineID    string
+	initErr      error
 
 	trayMu   sync.Mutex
 	trayShow *systray.MenuItem
@@ -242,13 +245,12 @@ func (a *App) startup(ctx context.Context) {
 			a.cloudSync.Start()
 		}
 		go func() {
-			limit := a.tunnelStartLimit()
 			a.configGate.Lock()
 			defer a.configGate.Unlock()
 			if a.allowClose.Load() {
 				return
 			}
-			if err := a.tunnel.StartAutoStart(limit); err != nil {
+			if err := a.tunnel.StartAutoStart(tunnelStartLimit); err != nil {
 				slog.Error("auto start tunnel failed", "err", err)
 			}
 		}()
@@ -381,7 +383,7 @@ func (a *App) GetState() (model.State, error) {
 		Groups:          append([]model.TunnelGroup{}, cfg.Groups...),
 		Tunnels:         append([]model.Tunnel{}, cfg.Tunnels...),
 		ActiveSlots:     a.tunnel.RunningCount(),
-		ActiveSlotLimit: a.currentTunnelStartLimit(),
+		ActiveSlotLimit: tunnelStartLimit,
 	}, nil
 }
 
@@ -776,7 +778,7 @@ func (a *App) ToggleTunnel(id int) (model.Tunnel, error) {
 	if err := a.ensureReady(); err != nil {
 		return model.Tunnel{}, err
 	}
-	return a.tunnel.Toggle(id, a.tunnelStartLimit)
+	return a.tunnel.Toggle(id, func() int { return tunnelStartLimit })
 }
 
 func (a *App) GetDevTunnelStatus() (devtunnel.Status, error) {
@@ -1003,35 +1005,6 @@ func (a *App) CancelCloudflareInstall() {
 	a.tunnel.CancelCloudflareInstall()
 }
 
-func (a *App) currentTunnelStartLimit() int {
-	if a.licenseActive.Load() {
-		return 0
-	}
-	return biz.FreePlanRunningLimit
-}
-
-func (a *App) tunnelStartLimit() int {
-	if a.license == nil {
-		return biz.FreePlanRunningLimit
-	}
-	machineID := strings.TrimSpace(a.machineID)
-	if machineID == "" {
-		machineID = device.MachineID()
-	}
-	if machineID == "" {
-		return biz.FreePlanRunningLimit
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	status, err := a.license.GetStatus(ctx, machineID)
-	if err != nil {
-		slog.Warn("license check for tunnel start limit failed; applying free plan limit", "err", err)
-		return biz.FreePlanRunningLimit
-	}
-	a.licenseActive.Store(status.Active)
-	return a.currentTunnelStartLimit()
-}
-
 func collectJumpersForApp(items []model.Jumper, ids []int) ([]model.Jumper, error) {
 	if len(ids) == 0 {
 		return nil, fmt.Errorf("at least one jumper is required")
@@ -1091,7 +1064,6 @@ func (a *App) GetLicenseStatus() (model.LicenseStatus, error) {
 	if err != nil {
 		return model.LicenseStatus{}, err
 	}
-	a.licenseActive.Store(status.Active)
 	if err := a.saveLicenseCode(status.Code); err != nil {
 		slog.Warn("save license code failed", "error", err)
 	}
@@ -1117,7 +1089,6 @@ func (a *App) RedeemLicenseCode(code string) (model.LicenseRedeemResult, error) 
 	if err != nil {
 		return model.LicenseRedeemResult{}, err
 	}
-	a.licenseActive.Store(result.Active)
 	if err := a.saveLicenseCode(result.Code); err != nil {
 		slog.Warn("save license code failed", "error", err)
 	}
@@ -1147,7 +1118,6 @@ func (a *App) saveLicenseCode(code string) error {
 }
 
 // syncAutoRunWithConfig aligns OS auto-run (launch at login) state with config.
-// Called from startup before frontend runs; frontend will later check Pro and may call SetAutoRunEnabled(false).
 func (a *App) syncAutoRunWithConfig() {
 	cfg, err := a.storage.Load()
 	if err != nil {
@@ -1324,11 +1294,11 @@ func (a *App) ImportConfig(srcPath string) error {
 	})
 	if err != nil {
 		for _, id := range running {
-			_, _ = a.tunnel.Toggle(id, a.tunnelStartLimit)
+			_, _ = a.tunnel.Toggle(id, func() int { return tunnelStartLimit })
 		}
 		return err
 	}
-	_ = a.tunnel.StartAutoStart(a.tunnelStartLimit())
+	_ = a.tunnel.StartAutoStart(tunnelStartLimit)
 
 	slog.Info("config imported", "src", srcPath)
 	return nil

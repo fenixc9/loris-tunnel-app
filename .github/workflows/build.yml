@@ -6,10 +6,8 @@
 # 随便起，一般叫 "Build" 或 "CI/CD"。
 name: Build
 
-# 设置 GITHUB_TOKEN 的权限，允许创建 Release
 permissions:
-  contents: write  # 写入权限：创建 release、上传文件
-  actions: read    # 读取权限：下载 artifacts
+  contents: read
 
 # `on` 是触发器（Trigger）。它决定了“什么时候”去执行下面配置的那些任务。
 on:
@@ -59,8 +57,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26" # 保持与你本地一致的 Go 版本
-          cache: true        # 魔法开启：自动缓存下载过的 Go 依赖包，下次运行大幅提速！
+          go-version-file: go.mod
+          cache: true
 
       # 【步骤 3】安装 Node.js 环境（Wails 的前端需要，同步为 24）。
       - name: Setup Node.js
@@ -137,6 +135,7 @@ jobs:
         with:
           name: loris-tunnel-macos
           path: build/bin/loris-tunnel.dmg
+          if-no-files-found: error
 
   # ----------------------------------------
   # 任务 2：构建 Windows 版本程序
@@ -152,7 +151,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: "1.26"
+          go-version-file: go.mod
           cache: true
 
       - name: Setup Node.js
@@ -187,12 +186,16 @@ jobs:
         with:
           name: loris-tunnel-windows
           path: build/bin/*.exe
+          if-no-files-found: error
 
 
   # ----------------------------------------
   # 任务 3：自动发布 Release 版本
   # ----------------------------------------
   release:
+    permissions:
+      contents: write
+      actions: read
     # `needs` 非常关键：它告诉 GitHub，这个任务必须等 build-macos 和 build-windows 都成功干完活，才能开始。
     needs: [build-macos, build-windows]
     
