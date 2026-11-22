@@ -182,7 +182,7 @@ auto_start = false
 ### 导出与云备份范围
 
 - **普通导出**：序列化 TOML 配置，排除内部云同步基线。导出内容可能包含 SSH 密码、私钥路径和注册码，应按敏感文件保管。
-- **云备份**：上传实际使用的完整 `config.toml`，包含注释、密码、私钥路径和授权字段。通过 HTTPS 上传，服务端加密保存；不属于客户端端到端加密。自动备份默认关闭，恢复版本需要确认。
+- **云备份**：点击「立即同步」或开启自动同步后才会上传。含 SSH 密码、私钥路径、SSH Agent 套接字路径或注册码的配置会被拒绝上传。符合条件的文件连同注释一起通过 HTTPS 上传，服务端可读取文件内容。请勿在注释中填写秘密信息。自动备份默认关闭，恢复版本需要确认。
 - **两者均不打包**：私钥文件、Dev Tunnel 登录凭据、`~/.cloudflared` 凭据、FRP 服务器设置与 Token、日志及 `config.root` 指针。云连接设置使用 `sync.dev.json` 或 `sync.prod.json`；云 Token 保存在 macOS Keychain 或 Windows Credential Manager。
 
 在其他电脑恢复后，需检查路径、本地端口、Provider 登录、凭据和 FRP 服务器绑定。详细行为见[云备份说明](docs/cloud-sync.md)。

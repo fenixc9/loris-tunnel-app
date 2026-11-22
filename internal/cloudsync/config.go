@@ -7,9 +7,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-
+	"errors"
 	"fmt"
 	"io"
+
 	"loris-tunnel/internal/conf"
 )
 
@@ -17,7 +18,9 @@ const SchemaVersion = 2
 const MaxFileSize = 1 << 20
 const MaxWireSize = 2 << 20
 
-// Config carries a compressed whole file over HTTPS. The server encrypts it at rest.
+var ErrBackupContainsCredentials = errors.New("cloud backup blocked: configuration contains an SSH password, private key path, SSH agent socket path, or license code")
+
+// Config carries a compressed TOML file over HTTPS.
 type Config struct {
 	SchemaVersion int    `json:"schema_version"`
 	Data          string `json:"data"`
@@ -29,8 +32,17 @@ func Pack(data []byte) (*Config, error) {
 	if len(data) > MaxFileSize {
 		return nil, fmt.Errorf("TOML exceeds 1 MiB")
 	}
-	if _, e := conf.ParseConfigTOML(data); e != nil {
+	cfg, e := conf.ParseConfigTOML(data)
+	if e != nil {
 		return nil, e
+	}
+	if cfg.License.Code != "" {
+		return nil, ErrBackupContainsCredentials
+	}
+	for _, jumper := range cfg.Jumpers {
+		if jumper.Password != "" || jumper.KeyPath != "" || jumper.AgentSocketPath != "" {
+			return nil, ErrBackupContainsCredentials
+		}
 	}
 	var buf bytes.Buffer
 	z := gzip.NewWriter(&buf)

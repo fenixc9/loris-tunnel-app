@@ -2,6 +2,7 @@ package cloudsync
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"loris-tunnel/internal/conf"
 	"net/http"
@@ -99,10 +100,28 @@ func readyFixture(t *testing.T) (*Service, *fileCloud, *fileStore) {
 	l := &fileStore{data: []byte("# original\nversion=1\n")}
 	s, url := serviceFixture(t, c, l)
 	st, e := s.Connect(url, strings.Repeat("a", 43), "Office")
+	if e != nil || st.State != "pending" || c.puts != 0 {
+		t.Fatal("connection attempted an upload", st, e)
+	}
+	st, e = s.Sync()
 	if e != nil || st.State != "synced" || c.puts != 1 {
 		t.Fatal(st, e)
 	}
 	return s, c, l
+}
+
+func TestSensitiveConfigurationNeverReachesUpload(t *testing.T) {
+	c := &fileCloud{}
+	l := &fileStore{data: []byte("version=1\n[[jumpers]]\npassword='fake-password'\n")}
+	s, url := serviceFixture(t, c, l)
+	st, err := s.Connect(url, strings.Repeat("a", 43), "Office")
+	if err != nil || st.State != "pending" || c.puts != 0 {
+		t.Fatal("connection attempted an upload", st, err)
+	}
+	st, err = s.Sync()
+	if !errors.Is(err, ErrBackupContainsCredentials) || st.State != "error" || c.puts != 0 {
+		t.Fatal("sensitive configuration reached upload", st, err)
+	}
 }
 func TestWholeFileBackupsWithTokenOnly(t *testing.T) {
 	s, c, l := readyFixture(t)

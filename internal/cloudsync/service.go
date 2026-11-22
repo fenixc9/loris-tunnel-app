@@ -449,7 +449,7 @@ func (s *Service) Connect(base, token, name string) (Status, error) {
 	s.backoff = 0
 	s.signalWake()
 	s.publish(Status{Connected: true, Automatic: o.Automatic, ServerURL: base, DeviceName: name, State: "idle", Revision: remote.Revision})
-	return s.syncLocked()
+	return s.syncLocked(false)
 }
 func (s *Service) Disconnect() error {
 	s.op.Lock()
@@ -547,8 +547,12 @@ func (s *Service) fail(e error) (Status, error) {
 	s.retryAt = time.Now().Add(delay)
 	return st, e
 }
-func (s *Service) Sync() (Status, error) { s.op.Lock(); defer s.op.Unlock(); return s.syncLocked() }
-func (s *Service) syncLocked() (Status, error) {
+func (s *Service) Sync() (Status, error) {
+	s.op.Lock()
+	defer s.op.Unlock()
+	return s.syncLocked(true)
+}
+func (s *Service) syncLocked(upload bool) (Status, error) {
 	if err := s.requireEnabledLocked(); err != nil {
 		return s.Status(), err
 	}
@@ -600,7 +604,7 @@ func (s *Service) syncLocked() (Status, error) {
 			if known && b.Revision != 0 {
 				return s.fail(fmt.Errorf("cloud revision reset; reconnect before replacing data"))
 			}
-			return s.push(token, remote, local)
+			return s.backupLocal(st, token, remote, local, upload)
 		}
 		full, e := s.request(s.options.ServerURL, token, "GET", "config", nil)
 		if e != nil {
@@ -630,10 +634,19 @@ func (s *Service) syncLocked() (Status, error) {
 		return st, nil
 	}
 	if hash != b.Fingerprint {
-		return s.push(token, remote, local)
+		return s.backupLocal(st, token, remote, local, upload)
 	}
 	return s.commit(remote, hash)
 }
+func (s *Service) backupLocal(st Status, token string, remote Remote, data []byte, upload bool) (Status, error) {
+	if upload {
+		return s.push(token, remote, data)
+	}
+	st.State = "pending"
+	s.publish(st)
+	return st, nil
+}
+
 func (s *Service) commit(r Remote, hash string) (Status, error) {
 	b := baseline(s.options, r, hash)
 	if old := s.options.Baseline; old.Revision == r.Revision && old.Fingerprint == hash && old.SpaceID == r.SpaceID {
@@ -732,7 +745,7 @@ func (s *Service) Resolve(choice string, revision int64, fingerprint string) (St
 	if remote.SpaceID != s.options.SpaceID ||
 		remote.Revision != revision ||
 		Fingerprint(local) != fingerprint {
-		return s.syncLocked()
+		return s.syncLocked(false)
 	}
 	if remote.Config == nil {
 		return s.fail(fmt.Errorf("cloud configuration is missing"))
@@ -870,7 +883,7 @@ func (s *Service) run() {
 		defer s.op.Unlock()
 		st := s.Status()
 		if !s.Stopped() && st.Enabled && st.Connected && st.Automatic && !s.suspended {
-			_, _ = s.syncLocked()
+			_, _ = s.syncLocked(true)
 		}
 	}
 	scan := func() {

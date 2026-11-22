@@ -69,15 +69,6 @@ import { isValidTargetHost } from './utils/host-validation'
 import { cloudflarePublicURL, isValidHostname, normalizeHostname } from './utils/cloudflare'
 import { GetCloudSyncStatus, CheckCloudSyncOnFocus } from './utils/cloud-sync-api'
 import { BrowserOpenURL, EventsOn } from '../wailsjs/runtime/runtime'
-import {
-  trackAppStart,
-  trackPageView,
-  trackButtonClick,
-  trackModalOpen,
-  trackModalClose,
-  trackTunnelAction,
-  trackJumperAction,
-} from './utils/analytics'
 import AppSidebar from './components/layout/AppSidebar.vue'
 import AppTopHeader from './components/layout/AppTopHeader.vue'
 import OverviewPage from './components/pages/OverviewPage.vue'
@@ -307,7 +298,6 @@ watch(configMessage, (message) => {
 })
 
 watch(activePage, (pageKey) => {
-  trackPageView(pageKey, appMeta.version)
   if (pageKey === 'config') void refreshLicenseStatusFromConfig({ silent: true })
 })
 
@@ -1878,7 +1868,6 @@ function openDevTunnelDocs() {
 
 function setThemeBySwitch(enabled) {
   theme.value = enabled ? 'dark' : 'light'
-  trackButtonClick('theme_switch', 'config', { theme: theme.value })
   logEvent('info', `Theme switched to ${theme.value}`)
 }
 
@@ -1952,7 +1941,6 @@ async function checkForUpdates() {
   }
   if (isCheckingUpdates.value) return
   isCheckingUpdates.value = true
-  trackButtonClick('check_updates', 'config')
   try {
     const result = await CheckForUpdatesAPI(appMeta.version)
 
@@ -2225,7 +2213,6 @@ function openNewJumper() {
   resetJumperTest()
   resetAIDebugState(jumperAiDebug)
   showJumperModal.value = true
-  trackModalOpen('jumper_create', 'jumpers')
 }
 
 async function loadImportJumperSources() {
@@ -2262,7 +2249,6 @@ async function loadImportJumpers() {
 
 function openImportJumper() {
   showImportJumperModal.value = true
-  trackModalOpen('jumper_import', 'jumpers')
   importJumperLoading.value = false
   importJumperError.value = ''
   importJumperHasLoaded.value = false
@@ -2289,7 +2275,6 @@ function editJumper(jumper) {
   resetJumperTest()
   resetAIDebugState(jumperAiDebug)
   showJumperModal.value = true
-  trackModalOpen('jumper_edit', 'jumpers', { jumper_name: jumper.name })
 }
 
 function fillJumperFormFromJumper(jumper, nameOverride = null) {
@@ -2757,7 +2742,6 @@ function openNewTunnel() {
   tunnelForm.nextJumperId = getNextTunnelJumperCandidate(tunnelForm.jumperIds)
   tunnelForm.appendNewJumper = jumpers.value.length === 0
   showTunnelModal.value = true
-  trackModalOpen('tunnel_create', 'tunnels')
    void refreshFRP().catch(err => logEvent('error', String(err)))
   void loadDevTunnelResources(false)
 }
@@ -2781,7 +2765,6 @@ function viewFRPTunnels(server) {
 function openImportTunnel() {
   importTunnelError.value = ''
   showImportTunnelModal.value = true
-  trackModalOpen('tunnel_import', 'tunnels')
 }
 
 function closeImportTunnel() {
@@ -3009,7 +2992,6 @@ function editTunnel(tunnel) {
   resetAIDebugState(tunnelAiDebug)
   tunnelValidationError.value = ''
   showTunnelModal.value = true
-  trackModalOpen('tunnel_edit', 'tunnels', { tunnel_name: tunnel.name })
   if (tunnelProvider(tunnel) === 'devtunnel') {
     void loadDevTunnelResources(false)
     if (tunnel.devTunnel?.tunnelId) void inspectDevTunnelID(tunnel.devTunnel.tunnelId)
@@ -3241,7 +3223,6 @@ async function toggleTunnel(tunnel) {
     }
 
     const action = updated.status === 'running' ? 'started' : 'stopped'
-    trackTunnelAction(action, updated.name)
     if (updated.status === 'running') {
       // 计算启动耗时
       const duration = Date.now() - startTime
@@ -3374,7 +3355,6 @@ async function submitRedeemDialog() {
 }
 
 function deleteTunnel(tunnel) {
-  trackTunnelAction('delete', tunnel.name)
   const provider = tunnel.provider || 'ssh'
   if (provider === 'ssh') {
     openActionDialog({
@@ -3498,7 +3478,6 @@ function openTunnelGroupModal(groupId = null) {
   tunnelGroupModalError.value = ''
   pendingTunnelGroupEditId.value = groupId
   showTunnelGroupModal.value = true
-  trackModalOpen('tunnel_group_manage', 'tunnels')
 }
 
 function closeTunnelGroupModal() {
@@ -3639,7 +3618,6 @@ async function moveTunnelToGroup({ tunnel, groupId }) {
 }
 
 function deleteJumper(jumper) {
-  trackJumperAction('delete', jumper.name)
   const inUseBy = tunnels.value.filter((item) => normalizeJumperIdList(item.jumperIds).includes(jumper.id))
   if (inUseBy.length > 0) {
     openActionDialog({
@@ -3704,8 +3682,6 @@ onMounted(async () => {
   })
   window.addEventListener('focus', cloudFocus)
   void GetCloudSyncStatus().then((status) => { cloudSyncStatus.value = status }).catch(() => {})
-  const platform = typeof navigator !== 'undefined' ? navigator.platform || 'unknown' : 'unknown'
-  trackAppStart(appMeta.version, platform)
   await loadStateFromBackend()
   void loadDevTunnelResources(false)
   stateSyncTimer = window.setInterval(syncStateSilently, STATE_SYNC_INTERVAL_MS)

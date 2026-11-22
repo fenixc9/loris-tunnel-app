@@ -33,8 +33,6 @@ import (
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const usageHeartbeatInterval = 2 * time.Hour
-
 // TunnelBiz treats a zero limit as unlimited concurrent starts.
 const tunnelStartLimit = 0
 
@@ -75,9 +73,6 @@ type App struct {
 	trayQuit *systray.MenuItem
 
 	allowClose atomic.Bool
-
-	usageReporterStop chan struct{}
-	usageReporterWG   sync.WaitGroup
 
 	trafficMu       sync.Mutex
 	lastTrafficUp   uint64
@@ -254,7 +249,6 @@ func (a *App) startup(ctx context.Context) {
 				slog.Error("auto start tunnel failed", "err", err)
 			}
 		}()
-		a.startUsageReporter()
 	}
 }
 
@@ -282,75 +276,10 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.cloudSync != nil {
 		a.cloudSync.Close()
 	}
-	a.stopUsageReporter()
 	if a.tunnel != nil {
 		a.configGate.Lock()
 		a.tunnel.Shutdown()
 		a.configGate.Unlock()
-	}
-}
-
-func (a *App) startUsageReporter() {
-	if a.license == nil || strings.TrimSpace(a.machineID) == "" {
-		slog.Warn("usage reporter skipped: missing client or machine id")
-		return
-	}
-	if a.usageReporterStop != nil {
-		return
-	}
-	a.usageReporterStop = make(chan struct{})
-	a.usageReporterWG.Add(1)
-	go func() {
-		defer a.usageReporterWG.Done()
-
-		a.reportUsageEvent("startup")
-
-		ticker := time.NewTicker(usageHeartbeatInterval)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				a.reportUsageEvent("heartbeat")
-			case <-a.usageReporterStop:
-				return
-			}
-		}
-	}()
-}
-
-func (a *App) stopUsageReporter() {
-	if a.usageReporterStop == nil {
-		return
-	}
-	close(a.usageReporterStop)
-	a.usageReporterStop = nil
-	a.usageReporterWG.Wait()
-}
-
-func (a *App) usageAppVersion() string {
-	if a.license != nil && a.license.Environment() == "dev" {
-		return productVersion + "-dev"
-	}
-	return productVersion
-}
-
-func (a *App) reportUsageEvent(eventType string) {
-	if a.license == nil {
-		return
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := a.license.ReportUsageEvent(ctx, model.UsageEventRequest{
-		MachineID:  a.machineID,
-		EventType:  eventType,
-		AppVersion: a.usageAppVersion(),
-		Platform:   runtime.GOOS,
-		ClientTS:   time.Now().UTC().Format(time.RFC3339),
-	})
-	if err != nil {
-		slog.Warn("report usage event failed", "event_type", eventType, "error", err)
 	}
 }
 

@@ -26,7 +26,7 @@ function setup(items) {
       context.tunnels.value = context.tunnels.value.map((item) => item.id === id ? { ...item, ...updated } : item)
     },
     t: (key) => key,
-    logEvent: () => {}, trackTunnelAction: () => {}, errorMessage: (err) => err.message
+    logEvent: () => {}, errorMessage: (err) => err.message
   })
   for (const [start, end] of [
     ['async function toggleTunnel(', '\nfunction openActionDialog('],

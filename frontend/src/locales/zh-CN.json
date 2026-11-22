@@ -844,7 +844,7 @@
         "loading": "正在读取同步设置…",
         "enabling": "正在开启…",
         "disabling": "正在关闭…",
-        "connectHint": "连接后会立即检查云端；云端为空时，将上传本机配置。",
+        "connectHint": "连接时会检查云端。点击「立即同步」上传。含 SSH 密码、私钥路径、Agent 套接字路径或注册码的配置无法备份。",
         "title": "云端配置同步",
         "token": "Token",
         "tokenInvalid": "请输入 43 位 Token，仅支持英文字母、数字、_ 和 -。也可点击自动生成。",

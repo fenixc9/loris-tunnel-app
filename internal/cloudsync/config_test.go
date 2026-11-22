@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
+	"errors"
 	"testing"
 )
 
 func TestWholeFileRoundTripAndValidation(t *testing.T) {
-	data := []byte("# preserved comment\nversion=1\n[license]\ncode='license-secret'\n[[jumpers]]\nid=1\npassword='password-secret'\nkey_path='C:\\keys\\ssh'\nsync_id='legacy'\n")
+	data := []byte("# preserved comment\nversion=1\n[[jumpers]]\nid=1\nauth_type='ssh_agent'\nsync_id='legacy'\n")
 	c, e := Pack(data)
 	if e != nil {
 		t.Fatal(e)
@@ -28,6 +29,19 @@ func TestWholeFileRoundTripAndValidation(t *testing.T) {
 	}
 	if _, e = Pack([]byte("broken = [")); e == nil {
 		t.Fatal("invalid TOML accepted")
+	}
+}
+
+func TestPackRefusesCredentials(t *testing.T) {
+	for _, data := range []string{
+		"[license]\ncode='fake-code'\n",
+		"[[jumpers]]\npassword='fake-password'\n",
+		"[[jumpers]]\nkey_path='/fake/private-key'\n",
+		"[[jumpers]]\nagent_socket_path='/fake/ssh-agent'\n",
+	} {
+		if _, err := Pack([]byte(data)); !errors.Is(err, ErrBackupContainsCredentials) {
+			t.Fatalf("credential guard returned %v", err)
+		}
 	}
 }
 func TestBoundedDecompressionAndInvalidTOML(t *testing.T) {

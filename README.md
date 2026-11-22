@@ -182,7 +182,7 @@ Supported `auth_type` values are `ssh_agent`, `ssh_key` (with `key_path`), and `
 ### Export and Cloud Backup Boundaries
 
 - **Ordinary export** serializes the TOML configuration and removes internal cloud-sync baselines. It can contain SSH passwords, private key paths, and the license code; handle exported files as sensitive data.
-- **Cloud backup** uploads the effective `config.toml` as a whole, including comments, passwords, key paths, and license fields. Uploads use HTTPS and the server encrypts stored backups; this is not client-side end-to-end encryption. Automatic backup is off by default, and restoring a version requires confirmation.
+- **Cloud backup** starts after you select Sync Now or enable automatic sync. The app blocks uploads of configurations containing SSH passwords, private key paths, SSH agent socket paths, or a license code. Eligible files, including their comments, are sent over HTTPS and can be read by the server. Keep secrets out of comments. Automatic backup is off by default, and restoring a version requires confirmation.
 - **Outside both**: private key files, Dev Tunnel login credentials, `~/.cloudflared` credentials, FRP server settings/tokens, logs, and the `config.root` pointer are not bundled. Cloud connection settings use `sync.dev.json` or `sync.prod.json`; the cloud token stays in macOS Keychain or Windows Credential Manager.
 
 Restoring on another computer requires checking paths, local ports, provider sign-in, credentials, and FRP server bindings. See [cloud backup details](docs/cloud-sync.md).

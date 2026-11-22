@@ -844,7 +844,7 @@
         "loading": "Reading sync settings…",
         "enabling": "Enabling…",
         "disabling": "Disabling…",
-        "connectHint": "Connecting checks the cloud immediately. If it is empty, this configuration will be uploaded.",
+        "connectHint": "Connecting checks the cloud. Use Sync Now to upload. Backups are blocked when the file contains SSH passwords, private key paths, agent socket paths, or a license code.",
         "title": "Cloud Sync",
         "token": "Token",
         "tokenInvalid": "Enter a 43-character Token using only English letters, numbers, _ and -, or generate one.",
