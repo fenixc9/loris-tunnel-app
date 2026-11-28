@@ -55,6 +55,7 @@ import {
   RedeemLicenseCode as RedeemLicenseCodeAPI,
   ReorderGroups,
   SaveUILocale,
+  SetTunnelGroupRunning,
   TestJumperConnection as TestJumperConnectionAPI,
   TestTunnelConnection as TestTunnelConnectionAPI,
   ToggleTunnel,
@@ -310,6 +311,7 @@ const STATE_SYNC_INTERVAL_MS = 5000
 const TRAFFIC_SYNC_INTERVAL_MS = 1000
 const TRAFFIC_HISTORY_LEN = 40
 const pendingTunnelActions = reactive(new Map())
+const pendingTunnelGroups = reactive(new Set())
 let tunnelActionRevision = 0
 let stateSyncTimer = null
 let trafficSyncTimer = null
@@ -3240,6 +3242,23 @@ async function toggleTunnel(tunnel) {
   }
 }
 
+async function setTunnelGroupRunning(groupId, running) {
+  if (pendingTunnelGroups.has(groupId)) return
+
+  pendingTunnelGroups.add(groupId)
+  try {
+    await SetTunnelGroupRunning(groupId, running)
+  } catch (err) {
+    const message = errorMessage(err)
+    setConfigMessage(message)
+    logEvent('error', message)
+  } finally {
+    tunnelActionRevision++
+    await loadStateFromBackend({ silent: true })
+    pendingTunnelGroups.delete(groupId)
+  }
+}
+
 function openActionDialog({
   mode = 'alert',
   message,
@@ -3912,6 +3931,7 @@ function closeTunnelModal() {
             v-if="activePage === 'tunnels'"
             :tunnels="filteredTunnels"
             :pending-tunnel-actions="pendingTunnelActions"
+            :pending-tunnel-groups="pendingTunnelGroups"
             :groups="tunnelGroups"
             :hide-empty-ungrouped="hideEmptyUngrouped"
             :search-query="tunnelSearchQuery"
@@ -3928,6 +3948,7 @@ function closeTunnelModal() {
             @delete-tunnel="deleteTunnel"
             @ai-debug="openSavedTunnelAIDebug"
             @manage-groups="openTunnelGroupModal()"
+            @set-group-running="setTunnelGroupRunning"
             @open-url="BrowserOpenURL"
             @rename-group="requestRenameTunnelGroup"
             @delete-group="deleteTunnelGroup"

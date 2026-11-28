@@ -710,6 +710,15 @@ func (a *App) ToggleTunnel(id int) (model.Tunnel, error) {
 	return a.tunnel.Toggle(id, func() int { return tunnelStartLimit })
 }
 
+func (a *App) SetTunnelGroupRunning(groupID int, running bool) error {
+	a.configGate.Lock()
+	defer a.configGate.Unlock()
+	if err := a.ensureReady(); err != nil {
+		return err
+	}
+	return a.tunnel.SetGroupRunning(groupID, running, tunnelStartLimit)
+}
+
 func (a *App) GetDevTunnelStatus() (devtunnel.Status, error) {
 	if err := a.ensureReady(); err != nil {
 		return devtunnel.Status{}, err

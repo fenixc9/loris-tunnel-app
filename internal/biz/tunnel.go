@@ -367,15 +367,54 @@ func (b *TunnelBiz) Toggle(id int, resolveMaxRunning func() int) (model.Tunnel, 
 	}
 
 	if b.isRunning(id) {
-		slog.Info("tunnel toggle stop", "tunnel_id", tunnel.ID, "name", tunnel.Name)
-		if err := b.stopRuntime(id); err != nil {
-			return model.Tunnel{}, err
-		}
-		manuallyStopped := true
-		return b.updateStatusWithIntent(id, "stopped", "", &manuallyStopped)
+		return b.stopTunnel(tunnel)
+	}
+	return b.startTunnel(tunnel, cfg.Jumpers, resolveMaxRunning())
+}
+
+func (b *TunnelBiz) SetGroupRunning(groupID int, running bool, maxRunning int) error {
+	cfg, err := b.storage.Load()
+	if err != nil {
+		return err
+	}
+	if _, ok := findGroupByID(cfg.Groups, groupID); !ok {
+		return ErrGroupNotFound
 	}
 
-	maxRunning := effectiveRunningLimit(resolveMaxRunning())
+	var failures []error
+	for _, tunnel := range cfg.Tunnels {
+		if tunnel.GroupID != groupID || b.isRunning(tunnel.ID) == running {
+			continue
+		}
+		var updated model.Tunnel
+		var err error
+		if running {
+			updated, err = b.startTunnel(tunnel, cfg.Jumpers, maxRunning)
+			if err == nil && updated.Status == "error" {
+				err = errors.New(updated.LastError)
+			}
+		} else {
+			_, err = b.stopTunnel(tunnel)
+		}
+		if err != nil {
+			failures = append(failures, fmt.Errorf("%s: %w", tunnel.Name, err))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (b *TunnelBiz) stopTunnel(tunnel model.Tunnel) (model.Tunnel, error) {
+	slog.Info("tunnel stop", "tunnel_id", tunnel.ID, "name", tunnel.Name)
+	if err := b.stopRuntime(tunnel.ID); err != nil {
+		return model.Tunnel{}, err
+	}
+	manuallyStopped := true
+	return b.updateStatusWithIntent(tunnel.ID, "stopped", "", &manuallyStopped)
+}
+
+func (b *TunnelBiz) startTunnel(tunnel model.Tunnel, configuredJumpers []model.Jumper, maxRunning int) (model.Tunnel, error) {
+	id := tunnel.ID
+	maxRunning = effectiveRunningLimit(maxRunning)
 	if maxRunning > 0 && b.RunningCount() >= maxRunning {
 		return model.Tunnel{}, fmt.Errorf("%w: limit %d", ErrFreePlanRunningLimit, maxRunning)
 	}
@@ -389,7 +428,7 @@ func (b *TunnelBiz) Toggle(id int, resolveMaxRunning func() int) (model.Tunnel, 
 		return b.beginAsyncStart(tunnel, nil, maxRunning)
 	}
 
-	jumpers, err := collectJumpers(cfg.Jumpers, tunnel.JumperIDs)
+	jumpers, err := collectJumpers(configuredJumpers, tunnel.JumperIDs)
 	if err != nil {
 		updated, statusErr := b.updateStatus(id, "error", "jumper not found")
 		if statusErr != nil {

@@ -153,6 +153,8 @@
                 "newGroupPlaceholder": "輸入分組名稱",
                 "empty": "暫無分組，建立後可整理隧道列表。",
                 "ungrouped": "未分組",
+                "startAll": "啟動組內所有隧道",
+                "stopAll": "停止組內所有隧道",
                 "rename": "重新命名",
                 "delete": "刪除分組",
                 "moveTo": "移動到分組",

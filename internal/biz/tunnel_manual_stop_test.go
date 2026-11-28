@@ -121,6 +121,57 @@ func TestAutoStartFiltersManualStopsBeforeLimit(t *testing.T) {
 	}
 }
 
+func TestSetGroupRunningUsesExplicitActions(t *testing.T) {
+	b := createAutoStartTunnels(t, 4)
+	_, err := b.storage.Update(func(cfg *conf.Config) error {
+		cfg.Groups = []model.TunnelGroup{{ID: 1, Name: "Work"}, {ID: 2, Name: "Other"}}
+		for index := range cfg.Tunnels {
+			cfg.Tunnels[index].GroupID = 1
+		}
+		cfg.Tunnels[1].JumperIDs = nil
+		cfg.Tunnels[2].ManuallyStopped = true
+		cfg.Tunnels[3].GroupID = 2
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.runs[1] = forward.NewLocalForward(model.Tunnel{ID: 1}, nil)
+	b.runs[4] = forward.NewLocalForward(model.Tunnel{ID: 4}, nil)
+	t.Cleanup(b.Shutdown)
+
+	if err := b.SetGroupRunning(99, true, 0); !errors.Is(err, ErrGroupNotFound) {
+		t.Fatalf("unknown group: %v", err)
+	}
+	if err := b.SetGroupRunning(1, true, 0); err == nil || !strings.Contains(err.Error(), "jumper not found") {
+		t.Fatalf("expected missing jumper error, got %v", err)
+	}
+	b.startWG.Wait()
+	cfg, err := b.storage.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !b.isRunning(1) || !b.isRunning(4) || cfg.Tunnels[2].ManuallyStopped {
+		t.Fatal("group start toggled an active tunnel or skipped a member after failure")
+	}
+
+	b.mu.Lock()
+	b.starting[3] = &model.Tunnel{ID: 3}
+	b.mu.Unlock()
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := b.SetGroupRunning(1, false, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cfg, err = b.storage.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.RunningCount() != 1 || !b.isRunning(4) || !cfg.Tunnels[0].ManuallyStopped || !cfg.Tunnels[2].ManuallyStopped {
+		t.Fatal("group stop did not persist stop intent for running and starting group members only")
+	}
+}
+
 func TestRejectedStartPreservesManualStop(t *testing.T) {
 	for _, reason := range []string{"limit", "storage"} {
 		t.Run(reason, func(t *testing.T) {

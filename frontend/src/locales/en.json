@@ -379,6 +379,8 @@
                 "newGroupPlaceholder": "New group name",
                 "empty": "No groups yet. Create one to organize tunnels.",
                 "ungrouped": "Ungrouped",
+                "startAll": "Start all in group",
+                "stopAll": "Stop all in group",
                 "rename": "Rename",
                 "delete": "Delete Group",
                 "moveTo": "Move to group",

@@ -15,6 +15,10 @@ const props = defineProps({
     type: Map,
     required: true
   },
+  pendingTunnelGroups: {
+    type: Set,
+    default: () => new Set()
+  },
   tunnels: {
     type: Array,
     required: true
@@ -65,6 +69,7 @@ const emit = defineEmits([
   'update-search-query',
   'ai-debug',
   'manage-groups',
+  'set-group-running',
   'rename-group',
   'delete-group',
   'move-tunnel-to-group',
@@ -752,7 +757,29 @@ function onActionSelect(event, action, tunnel, payload = null) {
                   </button>
                   <span class="tunnel-group-name">{{ entry.section.name }}</span>
                   <span class="tunnel-group-count text-muted">({{ entry.section.tunnels.length }})</span>
-                    <div v-if="!entry.section.isUngrouped" class="tunnel-group-actions ms-auto" @click.stop>
+                  <div v-if="!entry.section.isUngrouped" class="tunnel-group-actions ms-auto d-flex align-items-center gap-1" @click.stop>
+                    <span
+                      v-if="pendingTunnelGroups.has(entry.section.groupId)"
+                      class="spinner-border spinner-border-sm text-muted"
+                      role="status"
+                      :aria-label="$t('app.tunnels.actions.busy')"
+                    />
+                    <IconActionButton
+                      button-class="btn-outline-success"
+                      icon-class="bi-play-fill"
+                      :title="$t('app.tunnels.groups.startAll')"
+                      :aria-label="$t('app.tunnels.groups.startAll')"
+                      :disabled="pendingTunnelGroups.has(entry.section.groupId) || entry.section.tunnels.length === 0"
+                      @click="$emit('set-group-running', entry.section.groupId, true)"
+                    />
+                    <IconActionButton
+                      button-class="btn-outline-danger"
+                      icon-class="bi-stop-fill"
+                      :title="$t('app.tunnels.groups.stopAll')"
+                      :aria-label="$t('app.tunnels.groups.stopAll')"
+                      :disabled="pendingTunnelGroups.has(entry.section.groupId) || entry.section.tunnels.length === 0"
+                      @click="$emit('set-group-running', entry.section.groupId, false)"
+                    />
                     <div class="btn-group btn-group-sm tunnel-action-menu tunnel-group-menu" role="group">
                       <button
                         type="button"
@@ -846,7 +873,7 @@ function onActionSelect(event, action, tunnel, payload = null) {
                     :title="$t(primaryActionTitleKey(entry.tunnel))"
                     :aria-label="$t(primaryActionTitleKey(entry.tunnel))"
                     :icon-class="getPrimaryActionIcon(displayedStatus(entry.tunnel))"
-                    :disabled="entry.tunnel.status === 'busy' || pendingTunnelActions.has(entry.tunnel.id)"
+                    :disabled="entry.tunnel.status === 'busy' || pendingTunnelActions.has(entry.tunnel.id) || pendingTunnelGroups.has(resolveTunnelGroupId(entry.tunnel))"
                     @click="$emit('toggle-tunnel', entry.tunnel)"
                   />
                   <button

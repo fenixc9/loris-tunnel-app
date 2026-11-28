@@ -379,6 +379,8 @@
                 "newGroupPlaceholder": "输入分组名称",
                 "empty": "暂无分组，创建后可整理隧道列表。",
                 "ungrouped": "未分组",
+                "startAll": "启动组内全部隧道",
+                "stopAll": "停止组内全部隧道",
                 "rename": "重命名",
                 "delete": "删除分组",
                 "moveTo": "移动到分组",
